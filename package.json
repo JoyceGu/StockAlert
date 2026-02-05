@@ -1,0 +1,24 @@
+{
+  "name": "stock-alert-chart",
+  "version": "1.0.0",
+  "description": "Stock alert chart application with automated daily checks",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "check-alerts": "node scripts/check-alerts.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["stock", "alert", "chart", "finance"],
+  "author": "Your Name",
+  "license": "MIT"
+}
