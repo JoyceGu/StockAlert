@@ -125,12 +125,20 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-
-// Start server
-app.listen(PORT, () => {
-    console.log(`🚀 Stock Alert Server running on port ${PORT}`);
-    console.log(`📊 Dashboard: http://localhost:${PORT}`);
-    console.log(`💡 API Health: http://localhost:${PORT}/api/health`);
+// Serve test page
+app.get('/test', (req, res) => {
+    res.sendFile(path.join(__dirname, 'test-api.html'));
 });
 
+
+// Export for Vercel serverless
 module.exports = app;
+
+// Start server only if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        console.log(`🚀 Stock Alert Server running on port ${PORT}`);
+        console.log(`📊 Dashboard: http://localhost:${PORT}`);
+        console.log(`💡 API Health: http://localhost:${PORT}/api/health`);
+    });
+}

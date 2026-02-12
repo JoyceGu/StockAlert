@@ -118,8 +118,36 @@ class StockAlertApp {
         this.showLoading(true);
         
         try {
-            const promises = this.selectedStocks.map(symbol => this.fetchStockData(symbol));
-            await Promise.all(promises);
+            // Use Promise.allSettled to continue even if some fail
+            const promises = this.selectedStocks.map(symbol => 
+                this.fetchStockData(symbol).catch(error => {
+                    console.error(`Failed to load ${symbol}:`, error);
+                    return null; // Return null for failed stocks
+                })
+            );
+            
+            const results = await Promise.all(promises);
+            const successCount = results.filter(r => r !== null).length;
+            const failCount = results.filter(r => r === null).length;
+            
+            if (successCount === 0) {
+                console.error('All stock data loading failed');
+                const loadingDiv = document.getElementById('chartLoading');
+                if (loadingDiv) {
+                    loadingDiv.innerHTML = `
+                        <div style="color: #dc3545; text-align: center;">
+                            <p style="font-weight: bold;">⚠️ 无法加载股票数据</p>
+                            <p style="font-size: 0.9rem;">请检查网络连接和API端点</p>
+                            <p style="font-size: 0.8rem; margin-top: 10px;">检查浏览器控制台 (F12) 获取详细信息</p>
+                        </div>
+                    `;
+                    return; // Don't hide loading, show error
+                }
+            } else if (failCount > 0) {
+                console.warn(`${failCount} stock(s) failed to load, ${successCount} succeeded`);
+            }
+            
+            console.log(`Successfully loaded ${successCount} out of ${this.selectedStocks.length} stocks`);
         } catch (error) {
             console.error('Error loading stock data:', error);
         } finally {
@@ -129,15 +157,34 @@ class StockAlertApp {
 
     async fetchStockData(symbol) {
         try {
-            const response = await fetch(`/api/stock/${symbol}`);
+            const apiUrl = `/api/stock/${symbol}`;
+            console.log(`Fetching data for ${symbol} from ${apiUrl}`);
+            
+            const response = await fetch(apiUrl);
+            
             if (!response.ok) {
-                throw new Error(`Failed to fetch data for ${symbol}`);
+                const errorText = await response.text();
+                console.error(`API Error for ${symbol}:`, response.status, errorText);
+                throw new Error(`Failed to fetch data for ${symbol}: ${response.status} ${response.statusText}`);
             }
+            
             const data = await response.json();
+            console.log(`Successfully loaded ${symbol}:`, data.currentPrice);
             this.stockData[symbol] = data;
             return data;
         } catch (error) {
             console.error(`Error fetching data for ${symbol}:`, error);
+            // Show user-friendly error
+            const loadingDiv = document.getElementById('chartLoading');
+            if (loadingDiv) {
+                loadingDiv.innerHTML = `
+                    <div style="color: #dc3545; text-align: center;">
+                        <p style="font-weight: bold;">⚠️ 加载股票数据失败</p>
+                        <p style="font-size: 0.9rem;">${symbol}: ${error.message}</p>
+                        <p style="font-size: 0.8rem; margin-top: 10px;">请检查浏览器控制台获取详细信息</p>
+                    </div>
+                `;
+            }
             throw error;
         }
     }
