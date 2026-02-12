@@ -162,13 +162,34 @@ class StockAlertApp {
             
             const response = await fetch(apiUrl);
             
+            // 检查Content-Type，确保返回的是JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error(`API returned non-JSON for ${symbol}:`, contentType, text.substring(0, 200));
+                throw new Error(`API返回了HTML而不是JSON。可能是路由配置问题。状态码: ${response.status}`);
+            }
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`API Error for ${symbol}:`, response.status, errorText);
-                throw new Error(`Failed to fetch data for ${symbol}: ${response.status} ${response.statusText}`);
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // 如果错误响应也不是JSON，使用默认消息
+                }
+                console.error(`API Error for ${symbol}:`, response.status, errorMessage);
+                throw new Error(`获取${symbol}数据失败: ${errorMessage}`);
             }
             
             const data = await response.json();
+            
+            // 验证返回的数据结构
+            if (!data || !data.data || !Array.isArray(data.data)) {
+                console.error(`Invalid data structure for ${symbol}:`, data);
+                throw new Error(`${symbol}返回的数据格式不正确`);
+            }
+            
             console.log(`Successfully loaded ${symbol}:`, data.currentPrice);
             this.stockData[symbol] = data;
             return data;
@@ -176,12 +197,20 @@ class StockAlertApp {
             console.error(`Error fetching data for ${symbol}:`, error);
             // Show user-friendly error
             const loadingDiv = document.getElementById('chartLoading');
-            if (loadingDiv) {
+            if (loadingDiv && !loadingDiv.querySelector('.error-message')) {
                 loadingDiv.innerHTML = `
-                    <div style="color: #dc3545; text-align: center;">
-                        <p style="font-weight: bold;">⚠️ 加载股票数据失败</p>
-                        <p style="font-size: 0.9rem;">${symbol}: ${error.message}</p>
-                        <p style="font-size: 0.8rem; margin-top: 10px;">请检查浏览器控制台获取详细信息</p>
+                    <div class="error-message" style="color: #dc3545; text-align: center; padding: 20px;">
+                        <p style="font-weight: bold; font-size: 1.1rem;">⚠️ 加载股票数据失败</p>
+                        <p style="font-size: 0.95rem; margin-top: 10px;">${symbol}: ${error.message}</p>
+                        <p style="font-size: 0.85rem; margin-top: 15px; color: #666;">
+                            可能的原因：<br>
+                            • API路由配置问题<br>
+                            • Vercel部署配置错误<br>
+                            • 网络连接问题
+                        </p>
+                        <p style="font-size: 0.8rem; margin-top: 10px; color: #999;">
+                            请按F12打开控制台查看详细错误信息
+                        </p>
                     </div>
                 `;
             }

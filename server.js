@@ -98,21 +98,26 @@ class StockDataService {
 
 const stockService = new StockDataService();
 
-// API Routes
+// API Routes - Must be before static file serving
 app.get('/api/stock/:symbol', async (req, res) => {
     try {
         const { symbol } = req.params;
         const { timeframe } = req.query;
         
+        // Set explicit Content-Type
+        res.setHeader('Content-Type', 'application/json');
+        
         const data = await stockService.getStockData(symbol.toUpperCase(), timeframe);
         res.json(data);
     } catch (error) {
+        res.setHeader('Content-Type', 'application/json');
         res.status(500).json({ error: error.message });
     }
 });
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     res.json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
@@ -130,6 +135,25 @@ app.get('/test', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-api.html'));
 });
 
+// 404 handler for API routes - must be before catch-all
+app.use('/api/*', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(404).json({ 
+        error: 'API endpoint not found',
+        path: req.path,
+        method: req.method
+    });
+});
+
+// Catch-all for other routes - serve index.html for SPA
+app.get('*', (req, res) => {
+    // Only serve HTML for non-API routes
+    if (req.path.startsWith('/api/')) {
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Export for Vercel serverless
 module.exports = app;
